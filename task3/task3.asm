@@ -55,13 +55,21 @@ code segment use16
     input:    mov  ah,0ah
               lea  dx,array_buf                    ;
               int  21h
+
+              cmp  array_buf+1, 0
+              je   input
+
               mov  bl,array_buf+1
               mov  bh,0
               mov  BYTE PTR[array_buf+bx+2],24h
 
+    ;   mov  ah,09h
+    ;   lea  dx,array_buf+2
+    ;   int  21h
+
               inc  no
 
-              lea  bx,array_buf+2
+              lea  bl,array_buf+2
               call ASCII2num
 
 
@@ -95,11 +103,11 @@ ASCII2num proc near
               mov  eax,0
               mov  dx,0
 
-    s:        mov  al,[bx]
+    s:        mov  ax,ds:[bx]
 
-              mov  dx,ax
-              mov  ah,09h
-              int  21h
+    ;   mov  dx,ax
+    ;   mov  ah,09h
+    ;   int  21h
 
               cmp  al,24h
               je   next
@@ -107,8 +115,9 @@ ASCII2num proc near
               inc  bx
               jmp  s
 
-    next:     pop  ax
+    next:     
 
+              pop  ax
               mov  bx,sp
               cmp  bx,2
               je   negative
