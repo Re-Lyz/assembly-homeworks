@@ -2,172 +2,311 @@ assume  ds:data,ss:stack,cs:code
 
 .486
 data segment use16
-    description db '1:count the negetives',0dh,0ah,'2:sum the array',0dh,0ah,'3:sort the array',0dh,0ah,'4:exit',0dh,0ah,'$'
-    message1    db 'type 10 numbers between -99999~99999: ',0dh,0ah,'$'
+    description db 'Functons below:',0dh,0ah,'1:count the negetives',0dh,0ah,'2:sum the array',0dh,0ah,'3:sort the array',0dh,0ah,'4:exit',0dh,0ah,'$'
+    message1    db 'type 10 numbers between -99999~99999,use enter to input: ',0dh,0ah,'$'
     message2    db 'choose the function:',0dh,0ah,'$'
-    message3    db 'Please enter the right number! ',0dh,0ah,'$'
+    message3    db 'Please enter the right formula! ',0dh,0ah,'$'
     message4    db 'done!',0dh,0ah,'$'
     message5    db 'The number is too big! ',0dh,0ah,'$'
+    message6    db 0dh,0ah,'The number of negative numbers is: ',0dh,0ah,'$'
+    message7    db 'The sum of the array is: ',0dh,0ah,'$'
+    message8    db 'The sorted array is: ',0dh,0ah,'$'
+    num10       db '10',0dh,0ah,'$'
+    negsign     db '-','$'
+    nextline    db 0dh,0ah,'$'
 
-
-    array_buf   db 7
+    array_buf   db 10
                 db ?
-                db 7 dup(0)
+                db 10 dup(0)
+
+    num_buf     db 10 dup('$')
 
     digit       dd 10
-
-    no          dw 0                                                                                                            ; number of input
-    neg_no      db 0                                                                                                            ; number of negative numbers
-    num         dd 0                                                                                                            ; input number
+    loop_time   db 0
+    no          db 0
+    neg_no      db 0
+    initsp      dw 0
+    
+    ; number of negative numbers
+    num         dd 0                                                                                                                                      ; input number
     array       dd 10 dup(0)
 
 data ends
 
 stack segment use16
-    cache db 100 dup(0)
+    cache dw 50 dup(0)
 stack ends
 
 code segment use16
-    start:    
-    ; 设置相关段寄存器
-              mov  ax, data
-              mov  ds, ax
-              mov  ax, stack
-              mov  ss, ax
-              lea  ax, cache[100]
-              mov  sp, ax
-              
-              mov  si, 0
-              mov  di, 0
-              mov  bx, 0
-              mov  cx, 0
+    start:                                              ; 设置相关段寄存器
+                   mov  ax, data
+                   mov  ds, ax
+                   mov  ax, stack
+                   mov  ss, ax
+                   lea  ax, cache[50]
+                   mov  sp, ax
+                   mov  si, 0
+                   mov  di, 0
+                   mov  bx, 0
+                   mov  cx, 0
 
+                   call B10SCRN
+                   call SHOWMENU
+    inputnum:      
+                   call ASCII2num
+                   mov  eax,num
+                   mov  array[si],eax
+                   mov  num,0
+                   mov  loop_time,0
+                   add  si,4
+                   inc  no
+                   cmp  no,10
+                   jb   inputnum                        ;004a/输入结束
 
-              call B10SCRN
+                   lea  dx,message4
+                   mov  ah,09h
+                   int  21h
 
-              lea  dx,description
-              mov  ah,09h
-              int  21h
-              lea  dx,message1
-              mov  ah,09h
-              int  21h
+    choice:        lea  dx,description
+                   mov  ah,09h
+                   int  21h
+                   lea  dx,message2
+                   mov  ah,09h
+                   int  21h                             ;0060/显示菜单
 
-    input:    mov  ah,0ah
-              lea  dx,array_buf                    ;
-              int  21h
+                   mov  ah,01h
+                   int  21h
+                   cmp  al,31h
+                   je   count_neg
+                   cmp  al,32h
+                   je   sum_array
+                   cmp  al,33h
+                   je   sort_array
+                   cmp  al,34h
+                   je   closeP
 
-              cmp  array_buf+1, 0
-              je   input
+                   lea  dx,message3
+                   mov  ah,09h
+                   int  21h
+                   jmp  choice
 
-              mov  bl,array_buf+1
-              mov  bh,0
-              mov  BYTE PTR[array_buf+bx+2],24h
+    count_neg:     call COUNTNEG
+                   jmp  choice
 
-    ;   mov  ah,09h
-    ;   lea  dx,array_buf+2
-    ;   int  21h
+    sum_array:     call SUMARRAY
+                   jmp  choice
 
-              inc  no
+    sort_array:    call SORT
+                   jmp  choice
 
-              lea  bl,array_buf+2
-              call ASCII2num
+    closeP:        mov  ax,4c00h
+                   int  21h
 
+SHOWMENU proc near
+                   lea  dx,description
+                   mov  ah,09h
+                   int  21h
+                   lea  dx,message1
+                   mov  ah,09h
+                   int  21h
+                   ret
+SHOWMENU endp
 
-              cmp  no,10
-              jb   input
-
-              lea  dx,message4
-              mov  ah,09h
-              int  21h
-
-              lea  dx,message2
-              mov  ah,09h
-              int  21h
-
-
-              mov  ax,4c00h
-              int  21h
-
-          
 B10SCRN proc near
-              mov  ax,0600h
-              mov  bh,07h
-              mov  cx,0000h
-              mov  dx,184fh
-              int  10h
-              ret
+                   mov  ax,0600h
+                   mov  bh,07h
+                   mov  cx,0000h
+                   mov  dx,184fh
+                   int  10h
+                   ret
 B10SCRN endp
 
 ASCII2num proc near
-              mov  cx,0
-              mov  eax,0
-              mov  dx,0
+    input:         mov  ah,0ah
+                   lea  dx,array_buf                    ;
+                   int  21h
+                   cmp  array_buf+1, 0
+                   je   input
+                   mov  bl,array_buf+1
+                   mov  bh,0
+                   mov  BYTE PTR[array_buf+bx+2],0ah
+                   mov  BYTE PTR[array_buf+bx+3],24h
+                   mov  ah,09h
+                   lea  dx,array_buf+2
+                   int  21h
+                   lea  bx,array_buf+2
 
-    s:        mov  ax,ds:[bx]
+                   mov  cx,0
+                   mov  eax,0
+                   mov  dx,0
+                   mov  initsp,sp
 
-    ;   mov  dx,ax
-    ;   mov  ah,09h
-    ;   int  21h
+    s:             mov  ax,ds:[bx]
+                   cmp  ah,0ah
+                   push ax
+                   je   next
+                   inc  bl
+                   jmp  s
 
-              cmp  al,24h
-              je   next
-              push ax
-              inc  bx
-              jmp  s
+    next:          pop  ax
+                   lea  bx,cache[48]
+                   cmp  sp,bx
+                   je   negative
 
-    next:     
-
-              pop  ax
-              mov  bx,sp
-              cmp  bx,2
-              je   negative
-              cmp  bx,0
-              je   exit
-    n:        
-              cmp  al,30h
-              jb   error
-              cmp  al,39h
-              ja   error
-              sub  al,30h
-              mov  ebx,digit
+    n:             cmp  al,30h
+                   jb   error
+                   cmp  al,39h
+                   ja   error
+                   sub  al,30h
+                   mov  ah,0h
+                   mov  cl,loop_time
     ;num+=AL*10^CX
-              mov  bx,cx
-    d:        mul  ebx
-              loop d
-              add  num,eax
-              cmp  num,99999
-              ja   error2
-              inc  bx
-              mov  cx,bx
-              jmp  next
+    d:             cmp  cx,0
+                   je   e
+                   mul  digit
+                   dec  cx
+                   jmp  d
+
+    e:             add  num,eax
+                   inc  loop_time
+                   mov  cl,loop_time
+                   cmp  sp,bx
+                   je   exit
+                   jmp  next
            
-    exit:     ret
+    exit:          cmp  num,99999
+                   mov  eax,num
+                   ja   error2
+                   ret
+    negative:      cmp  al,2dh
+                   jne  n
+                   cmp  num,99999
+                   ja   error2
+                   neg  num
+                   inc  neg_no
+                   ret
 
-    negative: cmp  al,2dh
-              jne  n
-              neg  num
-              inc  neg_no
-              ret
+    error:         mov  ah,09h
+                   lea  dx,message3
+                   int  21h
+                   jmp  recycle
+    error2:        mov  ah,09h
+                   lea  dx,message5
+                   int  21h
+    recycle:       mov  num,0
+                   lea  ax, cache[50]
+                   mov  sp, initsp
+                   mov  loop_time,0
+                   jmp  input
 
-
-    error:    mov  ah,09h
-              lea  dx,message3
-              int  21h
-              dec  no
-              jmp  input
-
-    error2:   mov  ah,09h
-              lea  dx,message5
-              int  21h
-              mov  num,0
-              dec  no
-              jmp  input
               
 ASCII2num endp
 
-num2ASCII proc near
+COUNTNEG proc near
+                   lea  dx,message6
+                   mov  ah,09h
+                   int  21h
+                   mov  dx,0
+                   mov  ah,0
+               
+                   mov  al,neg_no
+                   cmp  al,10
+                   je   ten
+                   add  al,30h
+                   mov  num_buf,al
 
-              ret
+                   lea  dx,num_buf
+                   mov  ah,09h
+                   int  21h
+                   lea  dx,nextline
+                   mov  ah,09h
+                   int  21h
+                   ret
+
+    ten:           lea  dx,num10
+                   mov  ah,09h
+                   int  21h
+                   lea  dx,nextline
+                   mov  ah,09h
+                   int  21h
+                   ret
+COUNTNEG endp
+
+SUMARRAY proc near
+                   lea  dx,message7
+                   mov  ah,09h
+                   int  21h
+                   mov  si,0
+                   mov  cx,10
+                   mov  ebx,0
+
+    array_sum:     add  ebx,array[si]
+                   add  si,4
+                   loop array_sum
+
+                   cmp  ebx,0
+                   jge  shownum
+                   neg  ebx
+                   lea  dx,negsign
+                   mov  ah,09h
+                   int  21h
+
+    shownum:       call num2ASCII
+                   lea  dx,nextline
+                   mov  ah,09h
+                   int  21h
+                   ret
+SUMARRAY endp
+
+SORT proc near
+                   ret
+SORT endp
+
+num2ASCII proc near
+                   mov  eax,ebx
+                   lea  di, num_buf
+                   mov  cx,10
+    convert10:     
+                   xor  edx, edx
+                   div  cx
+                   add  dl,30h
+                   mov  ds:[di],dl
+                   inc  di
+                   cmp  eax,0
+                   jne  convert10
+                   dec  di                              ; DI 已经指向字符串的末尾（空字符位置），所以我们将 DI 指向最后一个数字的位置
+    reverse_string:
+                   cmp  si, di                          ; SI 指向字符串的开头，DI 指向末尾
+                   jge  done                            ; SI >= DI，字符串反转完成，跳出循环
+                   mov  al, [si]                        ; 将 SI 指向的字符加载到 AL
+                   mov  bl, ds:[di]                        ; 将 DI 指向的字符加载到 BL
+                   mov  [si], bl                        ; 将 BL 的值存储到 SI 指向的位置
+                   mov  ds:[di], al                        ; 将 AL 的值存储到 DI 指向的位置
+                   inc  si                              ; SI 向后移动
+                   dec  di                              ; DI 向前移动
+                   jmp  reverse_string
+
+    done:          
+    ; 显示转换后的十进制数
+                   mov  ah, 09h
+                   lea  dx, num_buf
+                   int  21h
+
+    ; 将 num_buf 中用到的所有字符复位为 '$'
+                   lea  si, num_buf                      ; SI 指向 num 字符串的开始位置
+                   mov  cx, 11                          ; 最大字符数（最多 10 个数字字符 + 1 个结束符）
+    reset_num_buf: 
+                   cmp  byte [si], '$'                    ; 如果是字符串结束符，则跳出
+                   je   reset_done
+                   mov  byte [si], '$'                  ; 将当前字符设为 '$'
+                   inc  si
+                   loop reset_num_buf
+
+
+
+               
+
+                   ret
 num2ASCII endp
 
 code ends
