@@ -12,7 +12,7 @@ data segment use16
     message7     db 0dh,0ah,'The sum of the array is: ',0dh,0ah,'$'
     message8     db 0dh,0ah,'The sorted array is: ',0dh,0ah,'$'
     message9     db 0dh,0ah,'The original array is: ',0dh,0ah,'$'
-    num10        db '10',0dh,0ah,'$'
+    num10        db '10','$'
     negsign      db '-','$'
     nextline     db 0dh,0ah,'$'
     space        db ' ','$'
@@ -30,8 +30,7 @@ data segment use16
     initsp       dw 0
     tempadd      dw 0
     sorted       db 0
-    
-    ; number of negative numbers
+
     num          dd 0                                                                                                                                      ; input number
     array        dd 10 dup(0)
     sorted_array dd 10 dup(0)
@@ -54,13 +53,11 @@ code segment use16
                       mov  di, 0
                       mov  bx, 0
                       mov  cx, 0
-
                       call B10SCRN
                       call SHOWMENU
     inputnum:         
                       call ASCII2num                       ;0022
                       mov  eax,num                         ;0026
-
                       mov  array[si],eax
                       mov  num,0
                       mov  loop_time,0
@@ -72,7 +69,6 @@ code segment use16
                       lea  dx,message4
                       mov  ah,09h
                       int  21h
-
     choice:           
                       lea  dx,description
                       mov  ah,09h
@@ -80,9 +76,9 @@ code segment use16
                       lea  dx,message2
                       mov  ah,09h
                       int  21h                             ;0060/显示菜单
-
                       mov  ah,01h
                       int  21h
+                      
                       cmp  al,31h                          ;0066
                       je   count_neg
                       cmp  al,32h
@@ -99,10 +95,8 @@ code segment use16
 
     count_neg:        call COUNTNEG
                       jmp  choice
-
     sum_array:        call SUMARRAY
                       jmp  choice
-
     sort_array:       call SORT
                       jmp  choice
 
@@ -129,12 +123,18 @@ B10SCRN proc near
 B10SCRN endp
 
 ASCII2num proc near
-    input:            mov  ah,0ah
+    input:            mov  initsp,sp
+                      mov  ah,0ah
                       lea  dx,array_buf                    ;
                       int  21h
                       cmp  array_buf+1, 0
                       je   input
-                      mov  bl,array_buf+1
+                      cmp  array_buf+1, 1
+                      jne  next_step
+                      cmp  array_buf+2, 2dh
+                      je   error
+
+    next_step:        mov  bl,array_buf+1
                       mov  bh,0
                       mov  BYTE PTR[array_buf+bx+2],0ah
                       mov  BYTE PTR[array_buf+bx+3],24h
@@ -142,12 +142,9 @@ ASCII2num proc near
                       lea  dx,array_buf+2
                       int  21h
                       lea  bx,array_buf+2
-
                       mov  cx,0
                       mov  eax,0
                       mov  dx,0
-                      mov  initsp,sp
-
     s:                mov  ax,ds:[bx]
                       cmp  ah,0ah
                       push ax
@@ -159,32 +156,30 @@ ASCII2num proc near
                       lea  bx,cache[48]
                       cmp  sp,bx
                       je   negative
-
     n:                cmp  al,30h
                       jb   error
                       cmp  al,39h
                       ja   error
                       sub  al,30h
                       mov  ah,0h
-                      mov  cl,loop_time
-    ;num+=AL*10^CX
+                      mov  cl,loop_time                    ;num+=AL*10^CX
     d:                cmp  cx,0
                       je   e
                       mul  digit
                       dec  cx
                       jmp  d
-
     e:                add  num,eax
                       inc  loop_time
                       mov  cl,loop_time
                       cmp  sp,bx
                       je   exit
                       jmp  next
-           
+
     exit:             cmp  num,99999
                       mov  eax,num
                       ja   error2
                       ret
+
     negative:         cmp  al,2dh
                       jne  n
                       cmp  num,99999
@@ -217,13 +212,11 @@ COUNTNEG proc near
                       int  21h
                       mov  dx,0
                       mov  ah,0
-               
                       mov  al,neg_no
                       cmp  al,10
                       je   ten
                       add  al,30h
                       mov  num_buf,al
-
                       lea  dx,num_buf
                       mov  ah,09h
                       int  21h
@@ -250,19 +243,11 @@ SUMARRAY proc near
                       mov  si,0
                       mov  cx,10
                       mov  ebx,0
-
     array_sum:        add  ebx,array[si]
                       add  si,4
                       loop array_sum
 
-                      cmp  ebx,0
-                      jge  shownum
-                      neg  ebx
-                      lea  dx,negsign
-                      mov  ah,09h
-                      int  21h
-
-    shownum:          call num2ASCII
+                      call num2ASCII
                       lea  dx,nextline
                       mov  ah,09h
                       int  21h
@@ -275,7 +260,6 @@ SORT proc near
                       mov  ah,09h
                       lea  dx,message8
                       int  21h
-
                       mov  si,0
                       mov  cx,10
                       cmp  sorted_array,0
@@ -285,39 +269,36 @@ SORT proc near
                       add  si,4
                       loop copy
 
-                      mov  cx,9                            ;234
-                      mov  bx,0
-    loop1:            mov  di,cx
-                      mov  si,bx
-
-    loop2:            mov  eax,sorted_array[si]
-                      cmp  eax,sorted_array[si+4]
+                      mov  cx, 9
+    loop1:            mov  di, cx
+                      mov  si, 0
+    loop2:            mov  eax, sorted_array[si]
+                      cmp  eax, sorted_array[si+4]
                       jge  next_num
-                      xchg eax,sorted_array[si+4]
-                      mov  sorted_array[si],eax
-    next_num:         add  si,4
+                      xchg eax, sorted_array[si+4]
+                      mov  sorted_array[si], eax
+    next_num:         add  si, 4
                       dec  di
-                      cmp  di,0
+                      cmp  di, 0
                       jne  loop2
-                      add  bx,4
-                      loop loop1
-                      mov  sorted_array,1
-                      mov  bx,0
-    show_sorted_array:
+
+                      dec  cx
+                      jnz  loop1
+
+                      mov  sorted,1
                       mov  si,0
                       mov  cx,10
-                      mov  ebx,sorted_array[si]
+    show_sorted_array:mov  ebx,sorted_array[si]
                       mov  loop_time,cl
                       mov  tempadd,si
                       call num2ASCII
                       mov  cl,loop_time
                       mov  si,tempadd
-
                       add  si,4
                       lea  dx,space
                       mov  ah,09h
                       int  21h
-                      loop show_array
+                      loop show_sorted_array
 
                       lea  dx,nextline
                       mov  ah,09h
@@ -327,7 +308,13 @@ SORT proc near
 SORT endp
 
 num2ASCII proc near
-                      mov  eax,ebx
+                      cmp  ebx,0
+                      jge  shownum
+                      neg  ebx
+                      lea  dx,negsign
+                      mov  ah,09h
+                      int  21h
+    shownum:          mov  eax,ebx
                       lea  di, num_buf
                       mov  ecx,10
     convert10:        
@@ -343,23 +330,21 @@ num2ASCII proc near
                       dec  di
    
     reverse_string:   
-                      cmp  si, di                          ; SI 指向字符串的开头，DI 指向末尾
-                      jge  done                            ; SI >= DI，字符串反转完成，跳出循环
-                      mov  al, ds:[si]                     ; 将 SI 指向的字符加载到 AL
-                      mov  bl, ds:[di]                     ; 将 DI 指向的字符加载到 BL
-                      mov  ds:[si], bl                     ; 将 BL 的值存储到 SI 指向的位置
-                      mov  ds:[di], al                     ; 将 AL 的值存储到 DI 指向的位置
-                      inc  si                              ; SI 向后移动
-                      dec  di                              ; DI 向前移动
+                      cmp  si, di                        
+                      jge  done                          
+                      mov  al, ds:[si]                   
+                      mov  bl, ds:[di]                  
+                      mov  ds:[si], bl                     
+                      mov  ds:[di], al                    
+                      inc  si                           
+                      dec  di                             
                       jmp  reverse_string
-
     done:             
                       mov  ah, 09h
                       lea  dx, num_buf
                       int  21h
-
-                      lea  si, num_buf                     ; SI 指向 num 字符串的开始位置
-                      mov  cx, 10                          ; 最大字符数（最多 10 个数字字符 + 1 个结束符）
+                      lea  si, num_buf                    
+                      mov  cx, 10                         
     reset_num_buf:    
                       cmp  byte [si],'$'
                       je   reset_done
@@ -381,10 +366,10 @@ SHOWARRAY proc near
                       mov  ebx,array[si]
                       mov  loop_time,cl
                       mov  tempadd,si
+                      cmp  ebx,0
                       call num2ASCII
                       mov  cl,loop_time
                       mov  si,tempadd
-
                       add  si,4
                       lea  dx,space
                       mov  ah,09h
@@ -395,7 +380,7 @@ SHOWARRAY proc near
                       mov  ah,09h
                       int  21h
                       mov  loop_time,0
-                      ret                                  ;33f
+                      ret                                  ;33e
 SHOWARRAY endp
 
 code ends
