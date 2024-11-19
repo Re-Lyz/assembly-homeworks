@@ -147,8 +147,8 @@ ASCII2num proc near
                       mov  dx,0
     s:                mov  ax,ds:[bx]
                       cmp  ah,0ah
-                      push ax
                       je   next
+                      push ax
                       inc  bl
                       jmp  s
 
@@ -330,21 +330,21 @@ num2ASCII proc near
                       dec  di
    
     reverse_string:   
-                      cmp  si, di                        
-                      jge  done                          
-                      mov  al, ds:[si]                   
-                      mov  bl, ds:[di]                  
-                      mov  ds:[si], bl                     
-                      mov  ds:[di], al                    
-                      inc  si                           
-                      dec  di                             
+                      cmp  si, di
+                      jge  done
+                      mov  al, ds:[si]
+                      mov  bl, ds:[di]
+                      mov  ds:[si], bl
+                      mov  ds:[di], al
+                      inc  si
+                      dec  di
                       jmp  reverse_string
     done:             
                       mov  ah, 09h
                       lea  dx, num_buf
                       int  21h
-                      lea  si, num_buf                    
-                      mov  cx, 10                         
+                      lea  si, num_buf
+                      mov  cx, 10
     reset_num_buf:    
                       cmp  byte [si],'$'
                       je   reset_done
