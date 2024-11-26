@@ -23,8 +23,8 @@ data segment use16
     message2     db  'Enter the radius of the circle <=250: ',0ah,0dh,'$'
     message3     db  'Please enter a number between 1 and 250!',0ah,0dh,'$'
 
-    x_buf        dw  300 dup('$')
-    y_buf        dw  300 dup('$')
+    x_buf        dw  500 dup('0')
+    y_buf        dw  500 dup('0')
     
 
     radius_buf   db  5
@@ -109,8 +109,8 @@ code segment use16
                        call   draw_circle                      ;00af
                        call   draw_square
 
-                       mov    ah, 0
-                       int    16h
+                       call   long_delay
+                       
 
                        mov    ax,4c00h
                        int    21h
@@ -242,8 +242,9 @@ draw_circle proc near
                        mov    di,dx                            ;找到起始点的y坐标：240
                        mov    x_end,320                        ;绘制左上角的边界 x边界：320
                        mov    ax,dx
-                       add    ax,bx
-                       mov    y_end,ax                         ;y边界：240+radius ;01c7
+                       sub    ax,bx
+                       dec    ax
+                       mov    y_end,ax                         ;y边界：240-radius ;01c7
 
     select:            mov    ax,si
                        sub    ax,cx
@@ -259,21 +260,23 @@ draw_circle proc near
                        mov    ebx,0
                        mov    bx,radius
                        cmp    eax, 0
-                       jge    positive3
+                       jge    positive
                        neg    eax
-    positive3:         cmp    eax,ebx
+    positive:          cmp    eax,ebx
                        jg     draw_pixel
 
                        mov    cx,si
+                       mov    bx,di
                        mov    ax,0
                        mov    al,loop_time
                        mov    si,ax
                        mov    ax,0
                        mov    x_buf[si], cx
-                       mov    y_buf[si], di
+                       mov    y_buf[si], bx
                        inc    loop_time
                        mov    si,cx
                        mov    cx,0
+                       mov    bx,0
                        call   draw_dot
 
     draw_pixel:        mov    cx,320
@@ -285,29 +288,28 @@ draw_circle proc near
                        mov    si, x_start
     next_line:         cmp    di, y_end
                        jne    select
-                       ret
                        
-                       dec    loop_time
+                       dec    loop_time                        ;0258
                        mov    ax,0
                        mov    al,loop_time
                        mov    loops,ax
-                       mov    di,0                             ;261
+                       mov    di,0
     draw_next_1_4:     mov    si,loops
+                       mov    ax,0
+                       mov    bx,0
                        mov    ax,x_buf[si]
                        mov    bx,y_buf[si]
-                       sub    ax,320
+                       sub    ax,640
                        neg    ax
-                       add    ax,320
                        dec    loops
                        mov    si,ax
                        mov    di,bx
+                       mov    ax,0
+                       mov    bx,0
                        call   draw_dot
                        cmp    loops,0
                        jge    draw_next_1_4
 
-
-
-                                                  
 
 
                        ret
@@ -319,7 +321,7 @@ draw_square endp
 
 draw_dot proc near
                        mov    bx,0
-                       mov    bl,color_change                  ;23c
+                       mov    bl,color_change
                        cmp    bl,0
                        jg     color_1
                        write  si, di, colors[0]
