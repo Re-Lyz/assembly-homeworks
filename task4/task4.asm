@@ -17,25 +17,32 @@ write MACRO x, y, color
           int 10h
 ENDM
 
-
 data segment use16
-    message1   db  '~~~DRAW A CIRCLE~~~'
-    title_len  equ $-message1
-    message2   db  'Enter the radius of the circle <=250: ',0ah,0dh,'$'
-    message3   db  'Please enter a number between 1 and 250!',0ah,0dh,'$'
+    message1     db  '~~~DRAW A CIRCLE~~~'
+    title_len    equ $-message1
+    message2     db  'Enter the radius of the circle <=250: ',0ah,0dh,'$'
+    message3     db  'Please enter a number between 1 and 250!',0ah,0dh,'$'
 
-    buf        db  10 dup(?)
-    radius_buf db  5
-               db  ?
-               db  5 dup(0)
-    digit      dw  10
-    radius     dw  0
-    initsp     dw  0
-    loop_time  db  0
+    x_buf        dw  300 dup('$')
+    y_buf        dw  300 dup('$')
+    
 
-    y          db  10
-    colors     db  1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11
-    count      db  ?
+    radius_buf   db  5
+                 db  ?
+                 db  5 dup(0)
+    digit        dw  10
+    radius       dw  0
+
+    initsp       dw  0
+    loop_time    db  0
+    loops        dw  0
+    color_change db  1
+
+    y_end        dw  0
+    x_end        dw  0
+    x_start      dw  0
+
+    colors       db  1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11
 
 data ends
 
@@ -52,8 +59,10 @@ code segment use16
                        mov    ds,ax
                        mov    si, 0
                        mov    di, 0
-                       mov    bx, 0
-                       mov    cx, 0
+                       mov    ebx, 0
+                       mov    ecx, 0
+                       mov    edx, 0
+                       mov    eax, 0
                        call   B10SCRN
                        mov    ah,09h
                        lea    dx,message2
@@ -93,25 +102,11 @@ code segment use16
                        mov    di,1
                        jmp    display_title_loop
     next_step:         
-                       call   time_delay
-                       call   time_delay
-                       call   time_delay
-                       call   time_delay
-                       call   time_delay
-                       call   time_delay
-                       call   time_delay
-                       call   time_delay
-                       call   time_delay
-                       call   time_delay
-                       call   time_delay
-                       call   time_delay
-                       call   time_delay
-                       call   time_delay
-                       call   time_delay
+                       call   long_delay
                        screen
-
                        write  320, 240, 15
-                       call   draw_circle
+                       mov    loop_time, 0
+                       call   draw_circle                      ;00af
                        call   draw_square
 
                        mov    ah, 0
@@ -137,6 +132,25 @@ time_delay proc near
 
 time_delay endp
 
+long_delay proc near
+                       call   time_delay
+                       call   time_delay
+                       call   time_delay
+                       call   time_delay
+                       call   time_delay
+                       call   time_delay
+                       call   time_delay
+                       call   time_delay
+                       call   time_delay
+                       call   time_delay
+                       call   time_delay
+                       call   time_delay
+                       call   time_delay
+                       call   time_delay
+                       call   time_delay
+                       ret
+long_delay endp
+
 sqroot proc near
                        push   ax
                        push   bx
@@ -158,8 +172,7 @@ sqroot proc near
 sqroot endp
 
 ASCII2num proc near
-    input:             mov    initsp,sp
-                       mov    ah,0ah
+    input:             mov    ah,0ah
                        lea    dx,radius_buf
                        int    21h
                        cmp    radius_buf+1, 0
@@ -175,21 +188,22 @@ ASCII2num proc near
                        mov    cx,0
                        mov    eax,0
                        mov    dx,0
+                       mov    initsp,sp
     s:                 mov    ax,ds:[bx]
                        cmp    ah,0ah
                        push   ax
                        je     next
                        inc    bl
                        jmp    s
-    next:              pop    ax
-                       lea    bx,cache[48]
+    next:              
+                       pop    ax
     n:                 cmp    al,30h
                        jb     error
                        cmp    al,39h
                        ja     error
                        sub    al,30h
                        mov    ah,0h
-                       mov    cl,loop_time                     ;num+=AL*10^CX
+                       mov    cl,loop_time                     ;radius+=AL*10^CX
     d:                 cmp    cx,0
                        je     e
                        mul    digit
@@ -198,18 +212,19 @@ ASCII2num proc near
     e:                 add    radius,ax
                        inc    loop_time
                        mov    cl,loop_time
+                       lea    bx,cache[48]
                        cmp    sp,bx
                        je     exit
                        jmp    next
     exit:              cmp    radius,250
                        ja     error
                        cmp    radius,0
-                       je     error
+                       jbe    error
                        ret
     error:             mov    ah,09h
                        lea    dx,message3
                        int    21h
-    recycle:           mov    radius,0
+                       mov    radius,0
                        lea    ax, cache[50]
                        mov    sp, initsp
                        mov    loop_time,0
@@ -223,19 +238,100 @@ draw_circle proc near
                        mov    ax,cx
                        sub    ax,bx
                        mov    si,ax
+                       mov    x_start,si                       ;找到起始点的x坐标：320-radius
+                       mov    di,dx                            ;找到起始点的y坐标：240
+                       mov    x_end,320                        ;绘制左上角的边界 x边界：320
                        mov    ax,dx
-                       sub    ax,bx
-                       mov    di,ax
+                       add    ax,bx
+                       mov    y_end,ax                         ;y边界：240+radius ;01c7
+
     select:            mov    ax,si
                        sub    ax,cx
                        imul   ax,ax
                        mov    bx,di
                        sub    bx,dx
+                       cmp    bx, 0
                        imul   bx,bx
-                       add    ax,bx
+                       add    eax,ebx
+                       mov    cx,radius
+                       imul   cx,cx
+                       sub    eax,ecx
+                       mov    ebx,0
+                       mov    bx,radius
+                       cmp    eax, 0
+                       jge    positive3
+                       neg    eax
+    positive3:         cmp    eax,ebx
+                       jg     draw_pixel
+
+                       mov    cx,si
+                       mov    ax,0
+                       mov    al,loop_time
+                       mov    si,ax
+                       mov    ax,0
+                       mov    x_buf[si], cx
+                       mov    y_buf[si], di
+                       inc    loop_time
+                       mov    si,cx
+                       mov    cx,0
+                       call   draw_dot
+
+    draw_pixel:        mov    cx,320
+                       mov    dx,240
+                       inc    si
+                       cmp    si, x_end
+                       jne    next_line
+                       dec    di
+                       mov    si, x_start
+    next_line:         cmp    di, y_end
+                       jne    select
+                       ret
+                       
+                       dec    loop_time
+                       mov    ax,0
+                       mov    al,loop_time
+                       mov    loops,ax
+                       mov    di,0                             ;261
+    draw_next_1_4:     mov    si,loops
+                       mov    ax,x_buf[si]
+                       mov    bx,y_buf[si]
+                       sub    ax,320
+                       neg    ax
+                       add    ax,320
+                       dec    loops
+                       mov    si,ax
+                       mov    di,bx
+                       call   draw_dot
+                       cmp    loops,0
+                       jge    draw_next_1_4
+
+
+
+                                                  
+
 
                        ret
 draw_circle endp
+
+draw_square proc near
+                       ret
+draw_square endp
+
+draw_dot proc near
+                       mov    bx,0
+                       mov    bl,color_change                  ;23c
+                       cmp    bl,0
+                       jg     color_1
+                       write  si, di, colors[0]
+                       neg    color_change
+                       jmp    color_2
+    color_1:           write  si, di, colors[1]
+                       neg    color_change
+    color_2:           call   delay
+                       call   delay
+                       ret
+draw_dot endp
+
 
 code ends
 end start

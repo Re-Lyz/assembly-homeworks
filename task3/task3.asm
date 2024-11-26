@@ -30,6 +30,7 @@ data segment use16
     initsp       dw 0
     tempadd      dw 0
     sorted       db 0
+    flag         db 0
 
     num          dd 0                                                                                                                                      ; input number
     array        dd 10 dup(0)
@@ -123,32 +124,35 @@ B10SCRN proc near
 B10SCRN endp
 
 ASCII2num proc near
-    input:            mov  initsp,sp
-                      mov  ah,0ah
+    input:            mov  ah,0ah
                       lea  dx,array_buf                    ;
                       int  21h
                       cmp  array_buf+1, 0
                       je   input
-                      cmp  array_buf+1, 1
-                      jne  next_step
-                      cmp  array_buf+2, 2dh
-                      je   error
-
-    next_step:        mov  bl,array_buf+1
+                      mov  bl,array_buf+1
                       mov  bh,0
-                      mov  BYTE PTR[array_buf+bx+2],0ah
+                      mov  ah,0
+                      mov  al,ds:[array_buf+bx+1]
+                      cmp  al,20h
+                      jne   space_change
+                      mov  BYTE PTR[array_buf+bx+1],0ah
+                      mov  BYTE PTR[array_buf+bx+2],24h
+                      jmp  regular_change
+    space_change:     mov  BYTE PTR[array_buf+bx+2],0ah
                       mov  BYTE PTR[array_buf+bx+3],24h
-                      mov  ah,09h
+    regular_change:   mov  ah,09h
                       lea  dx,array_buf+2
                       int  21h
                       lea  bx,array_buf+2
                       mov  cx,0
                       mov  eax,0
                       mov  dx,0
+                      mov  initsp,sp
+
     s:                mov  ax,ds:[bx]
                       cmp  ah,0ah
-                      je   next
                       push ax
+                      je   next
                       inc  bl
                       jmp  s
 
@@ -179,11 +183,12 @@ ASCII2num proc near
                       mov  eax,num
                       ja   error2
                       ret
-
     negative:         cmp  al,2dh
                       jne  n
                       cmp  num,99999
                       ja   error2
+                      cmp  num,0
+                      je   exit
                       neg  num
                       inc  neg_no
                       ret
@@ -200,8 +205,6 @@ ASCII2num proc near
                       mov  sp, initsp
                       mov  loop_time,0
                       jmp  input
-
-              
 ASCII2num endp
 
 COUNTNEG proc near
