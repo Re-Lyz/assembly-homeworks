@@ -16,7 +16,7 @@ data segment use16
     negsign      db '-','$'
     nextline     db 0dh,0ah,'$'
     space        db ' ','$'
-
+ 
     array_buf    db 10
                  db ?
                  db 10 dup(0)
@@ -134,13 +134,14 @@ ASCII2num proc near
                       mov  ah,0
                       mov  al,ds:[array_buf+bx+1]
                       cmp  al,20h
-                      jne   space_change
-                      mov  BYTE PTR[array_buf+bx+1],0ah
-                      mov  BYTE PTR[array_buf+bx+2],24h
-                      jmp  regular_change
+                      jne  space_change
+    space_dectect:    dec  bx
+                      mov  al,ds:[array_buf+bx+1]
+                      cmp  al,20h
+                      je   space_dectect
     space_change:     mov  BYTE PTR[array_buf+bx+2],0ah
                       mov  BYTE PTR[array_buf+bx+3],24h
-    regular_change:   mov  ah,09h
+                      mov  ah,09h
                       lea  dx,array_buf+2
                       int  21h
                       lea  bx,array_buf+2

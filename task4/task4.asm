@@ -16,35 +16,41 @@ write MACRO x, y, color
           mov dx, y
           int 10h
 ENDM
-
+ 
 data segment use16
-    message1     db  '~~~DRAW A CIRCLE~~~'
-    title_len    equ $-message1
-    message2     db  'Enter the radius of the circle <=250: ',0ah,0dh,'$'
-    message3     db  'Please enter a number between 1 and 250!',0ah,0dh,'$'
+    message1     db 'Enter the radius of the circle <=250: ',0ah,0dh,'$'
+    message2     db 'Please enter a number between 1 and 250!',0ah,0dh,'$'
+    message3     db 'Please enter the title: ',0ah,0dh,'$'
+    message4     db 'You can enter "y" to input again, any other key to exit: ',0dh,0ah,'$'
+    space        db ' '
+    nextline     db 0dh,0ah,'$'
 
-    x_buf        db  500 dup('0')
-    y_buf        db  500 dup('0')
-    x_up         db  500 dup('0')
-    y_up         db  500 dup('0')
+    x_buf        db 500 dup('0')
+    y_buf        db 500 dup('0')
+    x_up         db 500 dup('0')
+    y_up         db 500 dup('0')
     
-    radius_buf   db  5
-                 db  ?
-                 db  5 dup(0)
-    digit        dw  10
-    radius       dw  0
+    radius_buf   db 5
+                 db ?
+                 db 5 dup(0)
+    title_buf    db 50
+                 db ?
+                 db 50 dup(0)
 
-    initsp       dw  0
-    loop_time    db  0
-    loop_times   dw  0
-    loops        dw  0
-    color_change db  1
+    digit        dw 10
+    radius       dw 0
 
-    y_end        dw  0
-    x_end        dw  0
-    x_start      dw  0
+    initsp       dw 0
+    loop_time    db 0
+    loop_times   dw 0
+    loops        dw 0
+    color_change db 1
 
-    colors       db  1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11
+    y_end        dw 0
+    x_end        dw 0
+    x_start      dw 0
+
+    colors       db 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11
 
 data ends
 
@@ -67,66 +73,162 @@ code segment use16
                        mov    eax, 0
                        call   B10SCRN
                        mov    ah,09h
-                       lea    dx,message2
+                       lea    dx,message3
+                       int    21h
+    input_title:       lea    dx,title_buf
+                       mov    ah,0ah
+                       int    21h
+                       cmp    title_buf+1, 0
+                       je     input_title
+                       mov    bl, title_buf+1
+                       mov    bh, 0
+                       mov    BYTE PTR[title_buf+bx+2],24h
+                       mov    ah,09h
+                       lea    dx,title_buf+2
+                       int    21h
+                       mov    ah,09h
+                       lea    dx,nextline
+                       int    21h
+
+                       mov    ah,09h
+                       lea    dx,message1
                        int    21h
                        call   ASCII2num
                        call   B10SCRN
 
-                       mov    cx,title_len                     ;002d
-                       mov    loop_time,cl
-                       lea    si,message1                      ;0042
-                       mov    dx,49
-                       sub    dx,cx
-                       mov    dh,10
-    display_title_loop:
-                       mov    bx,0
+    draw_title:        mov    cx,0                             ;0071
+                       mov    dx,0101h
+                       mov    loop_time, 1
+                       mov    di,0
+                       screen
                        mov    ah,02h
+                       mov    bh,0
+                       int    10h
+                       mov    ah,09h
+                       lea    si,title_buf+2
+
+    show_title1:       mov    ah,02h
+                       mov    bh,0
                        int    10h
                        mov    ah,09h
                        mov    al,ds:[si]
-                       mov    bh,0
                        mov    bl,colors[di]
                        mov    cx,1
                        int    10h
                        inc    si
-                       call   time_delay
-                       call   time_delay
-                       call   time_delay
-                       dec    loop_time
-                       cmp    loop_time,0
-                       je     next_step
-                       mov    ah,03h
-                       int    10h
                        inc    dl
+                       call   long_delay
+                       mov    al,ds:[si]
+                       cmp    al,'$'
+                       je     clear_title
+                       jmp    show_title1
+
+    display_title_loop:
+                       mov    ah,02h
+                       mov    bh,0
+                       int    10h
+                       mov    ah,09h
+                       lea    si,title_buf+2
+    show_title:        mov    ah,02h
+                       mov    bh,0
+                       int    10h
+                       mov    ah,09h
+                       mov    al,ds:[si]
+                       mov    bl,colors[di]
+                       mov    cx,1
+                       int    10h
+                       inc    si
+                       inc    dl
+                       mov    al,ds:[si]
+                       cmp    al,'$'
+                       je     clear_title
+                       jmp    show_title
+    clear_title:       call   long_delay
+                       mov    ah,02h
+                       mov    bh,0
+                       mov    dx,0100h
+                       int    10h
+                       inc    loop_time
+                       mov    ah,09h
+                       lea    si,space
+                       mov    al,ds:[si]
+                       mov    cx,640
+                       mov    bl,0
+                       int    10h
                        inc    di
-                       cmp    di,11
-                       jb     display_title_loop
-                       mov    di,1
-                       jmp    display_title_loop
+                       mov    dl,loop_time
+                       cmp    di,10
+                       jbe    change_color
+                       mov    di,0
+    change_color:      
+                       cmp    loop_time, 80
+                       jne    change_loop
+                       mov    loop_time, 0
+    change_loop:       mov    ah, 01h
+                       int    16h
+                       jz     display_title_loop
     next_step:         
                        call   long_delay
-                       screen
                        write  320, 240, 15
                        mov    loop_time, 0
                        call   draw_circle                      ;00af
                        call   draw_square                      ;00b2
-                       call   time_delay
-                       call   time_delay
-                       
+
+                       mov    ah,02h
+                       mov    bh,0
+                       mov    dx,1900h
+                       int    10h
+
+                       mov    ah,09h
+                       lea    dx,message4
+                       int    21h
+                       mov    ah, 08h                          ;004a
+                       int    21h
+                       mov    ah, 01h                          ;004a
+                       int    21h
+                       cmp    al, 'y'
+                       je     recyle
+                       cmp    al, 'Y'
+                       je     recyle
                        mov    ax,4c00h
                        int    21h
+    recyle:            lea    dx,nextline
+                       mov    ah,09h
+                       int    21h
+                       mov    digit, 10
+                       mov    loop_time, 0
+                       mov    color_change,1
+                       mov    loop_times,0
+                       mov    cx, 5
+                       lea    si, radius_buf+2
+    clear_radius_buf:  mov    byte [si], '0'
+                       inc    si
+                       loop   clear_radius_buf
+                       mov    si,0
+                       mov    eax,0
+                       mov    ebx,0
+                       mov    ecx,0
+                       jmp    start
 
 B10SCRN proc near
+                       mov    ax, 03h
+                       int    10h
                        mov    ax,0600h
                        mov    bh,07h
                        mov    cx,0000h
                        mov    dx,184fh
                        int    10h
+                       mov    ah, 09h
+                       mov    al, ' '
+                       mov    bh, 0
+                       mov    bl, 0Fh
+                       mov    dl, 00h
+                       int    10h
                        ret
 B10SCRN endp
 
 time_delay proc near
-                       mov    cx,65535
+                       mov    cx,16383
     delay:             nop
                        loop   delay
                        ret
@@ -202,7 +304,7 @@ ASCII2num proc near
                        jbe    error
                        ret
     error:             mov    ah,09h
-                       lea    dx,message3
+                       lea    dx,message2
                        int    21h
                        mov    radius,0
                        lea    ax, cache[50]

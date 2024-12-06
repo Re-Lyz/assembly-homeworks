@@ -4,7 +4,7 @@ data segment use16
     description db 'Please input a 4-bit hexadecimal number: ',0dh,0ah,'$'
     message1    db 'You can enter "y" to input again, any other key to exit: ',0dh,0ah,'$'
 
-    hexlinkdec  db 'h=','$'
+    hexlinkdec  db 'H=','$'
     nextline    db 0dh,0ah,'$'
 
     input_buf   db 10 dup('$')
@@ -13,7 +13,8 @@ data segment use16
     digit       dd 10h
     loop_time   db 4
 
-    num         dd 0                                                                          ; input number
+    num         dd 0
+    num_temp    dd 4 dup(0)                                                                   ; input number
 data ends
 
 stack segment stack use16
@@ -44,10 +45,10 @@ code segment use16
                     lea  dx, nextline
                     mov  ah, 09h
                     int  21h
+
                     lea  dx, message1
                     mov  ah, 09h
                     int  21h
-
                     mov  ah, 01h              ;004a
                     int  21h
                     cmp  al, 'y'
@@ -83,11 +84,14 @@ B10SCRN endp
 
 ASCII2num proc near
                     mov  si,0
+                    mov  di,0
                     mov  ebx,0
     input:          mov  eax,0
                     mov  ah,08h
                     int  21h
-    chr_dect:       cmp  al,30h               ;0-9
+    chr_dect:       cmp  al,08h
+                    je   backspace
+                    cmp  al,30h               ;0-9
                     jb   input
                     cmp  al,39h
                     jbe  cal_num
@@ -122,12 +126,38 @@ ASCII2num proc near
                     mul  digit
                     dec  cx
                     jmp  d
-    e:              add  num,eax
+    e:              mov  num_temp[di],eax
+                    add  num,eax
                     dec  loop_time
                     inc  si
+                    add  di,4
                     cmp  loop_time,0
                     jne  input
                     ret
+    backspace:      cmp  si,0
+                    je   input
+                    dec  si
+                    sub  di,4
+                    inc  loop_time
+                    mov  eax,num_temp[di]
+                    mov  input_buf[si],'$'
+                    sub  num,eax
+                    mov  eax,0
+                    mov  ah,03h
+                    mov  bh,0
+                    int  10h
+                    dec  dl
+                    mov  ah,02h
+                    mov  bh,0
+                    int  10h
+                    mov  ah,09h
+                    mov  al,' '
+                    mov  bh,0
+                    mov  bl,07h
+                    mov  cx,1
+                    int  10h
+                    jmp  input
+
 ASCII2num endp
 
 num2ASCII proc near
@@ -170,6 +200,6 @@ num2ASCII proc near
                     mov  di,0                 ;025d
                     ret
 num2ASCII endp
-
+ 
 code ends
 end start
