@@ -1,5 +1,7 @@
-assume  ds:data,ss:stack,cs:code
-.486
+.386
+public func4 
+
+
 screen MACRO
            mov ax,12h
            int 10h
@@ -17,7 +19,7 @@ write MACRO x, y, color
           int 10h
 ENDM
  
-data segment use16
+data segment use16 para public 'data'
     message1     db 'Enter the radius of the circle <=250: ',0ah,0dh,'$'
     message2     db 'Please enter a number between 1 and 250!',0ah,0dh,'$'
     message3     db 'Please enter the title: ',0ah,0dh,'$'
@@ -52,15 +54,24 @@ data segment use16
 
     colors       db 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11
 
+    stack_sp     dw 0
+    stack_ss     dw 0
+
 data ends
 
-stack segment use16
+stack segment use16 para public 'stack'
     cache dw 128 dup(?)
 stack ends
 
-code segment use16
-    start:             mov    ax,stack
-                       mov    ss,ax
+code segment use16 para public 'code'
+                       assume ds:data,ss:stack,cs:code
+
+func4 proc far
+                       mov    stack_sp, sp
+                       mov    stack_ss, ss
+    start:             
+                       mov    ax,data
+                       mov    ds,ax
                        lea    ax, cache[50]
                        mov    sp, ax
                        mov    ax,data
@@ -190,8 +201,10 @@ code segment use16
                        je     recyle
                        cmp    al, 'Y'
                        je     recyle
-                       mov    ax,4c00h
-                       int    21h
+                       
+                       mov    sp,stack_sp
+                       mov    ss,stack_ss
+                       retf
     recyle:            lea    dx,nextline
                        mov    ah,09h
                        int    21h
@@ -209,6 +222,8 @@ code segment use16
                        mov    ebx,0
                        mov    ecx,0
                        jmp    start
+
+func4 endp
 
 B10SCRN proc near
                        mov    ax, 03h
