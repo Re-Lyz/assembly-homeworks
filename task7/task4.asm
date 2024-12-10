@@ -1,7 +1,6 @@
 .386
 public func4 
 
-
 screen MACRO
            mov ax,12h
            int 10h
@@ -212,6 +211,7 @@ func4 proc far
                        mov    loop_time, 0
                        mov    color_change,1
                        mov    loop_times,0
+                       mov    radius,0
                        mov    cx, 5
                        lea    si, radius_buf+2
     clear_radius_buf:  mov    byte ptr[si], '0'
