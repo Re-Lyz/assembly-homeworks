@@ -143,7 +143,14 @@ code segment use16
                        cmp    al,'$'
                        je     clear_title
                        jmp    show_title
-    clear_title:       call   long_delay
+    clear_title:       call   time_delay
+                       call   time_delay
+                       call   time_delay
+                       call   time_delay
+                       call   time_delay
+                       call   time_delay
+                       call   time_delay
+                       call   time_delay
                        mov    ah,02h
                        mov    bh,0
                        mov    dx,0100h
@@ -202,9 +209,14 @@ code segment use16
                        mov    radius,0
                        mov    cx, 5
                        lea    si, radius_buf+2
-    clear_radius_buf:  mov    byte ptr[si], '0'
+    clear_radius_buf:  mov    byte ptr[si], 0
                        inc    si
                        loop   clear_radius_buf
+                       mov    cx,2000
+                       lea    si, x_buf
+    clear_axis:        mov    byte ptr[si],'0'
+                       inc    si
+                       loop   clear_axis
                        mov    si,0
                        mov    eax,0
                        mov    ebx,0

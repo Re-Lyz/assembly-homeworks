@@ -55,6 +55,7 @@ data segment use16 para public 'data'
 
     stack_sp     dw 0
     stack_ss     dw 0
+    exit_code    db 0
 
 data ends
 
@@ -153,7 +154,14 @@ func4 proc far
                        cmp    al,'$'
                        je     clear_title
                        jmp    show_title
-    clear_title:       call   long_delay
+    clear_title:       call   time_delay
+                       call   time_delay
+                       call   time_delay
+                       call   time_delay
+                       call   time_delay
+                       call   time_delay
+                       call   time_delay
+                       call   time_delay
                        mov    ah,02h
                        mov    bh,0
                        mov    dx,0100h
@@ -200,10 +208,8 @@ func4 proc far
                        je     recyle
                        cmp    al, 'Y'
                        je     recyle
-                       
-                       mov    sp,stack_sp
-                       mov    ss,stack_ss
-                       retf
+                       mov    exit_code, 1
+
     recyle:            lea    dx,nextline
                        mov    ah,09h
                        int    21h
@@ -217,11 +223,22 @@ func4 proc far
     clear_radius_buf:  mov    byte ptr[si], '0'
                        inc    si
                        loop   clear_radius_buf
+                       mov    cx,2000
+                       lea    si, x_buf
+    clear_axis:        mov    byte ptr[si],'0'
+                       inc    si
+                       loop   clear_axis
                        mov    si,0
                        mov    eax,0
                        mov    ebx,0
                        mov    ecx,0
+                       cmp    exit_code, 1
+                       je     exit_segment
                        jmp    start
+    exit_segment:      mov    sp,stack_sp
+                       mov    ss,stack_ss
+                       mov    exit_code,0
+                       retf
 
 func4 endp
 

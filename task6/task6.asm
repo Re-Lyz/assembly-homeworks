@@ -2,10 +2,10 @@ assume  ds:data,ss:stack,cs:code
 .486
 
 data segment use16
-      message   db 0dh, 0ah, "Please input a number between 1 and 7 to play (Input 0 to quit): ", '$'
+      message   db 0dh, 0ah, "Please input a number between 1 and 8 to play (Input 0 to quit): ", '$'
       nextline  db 0dh, 0ah, '$'
       tune      dw 0
-      frequency dw 0, 261, 293, 329, 349, 392, 440, 493
+      frequency dw 0, 261, 293, 329, 349, 392, 440, 493, 523
 
 data ends
 
@@ -72,7 +72,7 @@ input proc near
                  int  16h
                  cmp  al,30h
                  jb   error
-                 cmp  al,37h
+                 cmp  al,38h
                  ja   error
 
                  sub  al,30h
